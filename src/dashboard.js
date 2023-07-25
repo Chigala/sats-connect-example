@@ -13,6 +13,7 @@ class Dashboard extends React.Component {
   }
 
   onConnectClick = async () => {
+    console.log("onConnectClick")
     const getAddressOptions = {
       payload: {
         purposes: ["ordinals", "payment"],
