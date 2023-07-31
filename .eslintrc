@@ -1,0 +1,15 @@
+{
+  "parser": "@babel/eslint-parser",
+  "parserOptions": {
+    "sourceType": "module",
+    "ecmaVersion": 2021,
+    "ecmaFeatures": {
+      "jsx": true
+    }
+  },
+  "plugins": ["import", "react"],
+  "extends": ["eslint:recommended", "plugin:react/recommended"],
+  "rules": {
+    // Your custom rules (if any)
+  }
+}

@@ -8,23 +8,15 @@ import {
 import * as btc from "@scure/btc-signer";
 import { hex, base64 } from "@scure/base";
 import { useParams } from "react-router-dom";
-import bigInt from "big-integer";
 
 const Dashboard = () => {
-
-      const { value, address   } = useParams();
-      console.log("this is the value:  ", value)
-      console.log("this is the address:  ", address)
+  const { value, address } = useParams();
+  console.log("this is the value:  ", value);
+  console.log("this is the address:  ", address);
   const [paymentAddress, setPaymentAddress] = useState("");
   const [paymentPublicKey, setPaymentPublicKey] = useState("");
   const [ordinalsAddress, setOrdinalsAddress] = useState("");
   const [ordinalsPublicKey, setOrdinalsPublicKey] = useState("");
-
-
-  useEffect(() => {
-    // ComponentDidMount equivalent
-    // Add any initial logic here if needed
-  }, []);
 
   const onConnectClick = async () => {
     const getAddressOptions = {
@@ -221,7 +213,7 @@ const Dashboard = () => {
 
   return (
     <div style={{ padding: 30 }}>
-       Test App
+      Test App
       <div>
         <br />
         {paymentAddress && <div>Payment Address: {paymentAddress}</div>}
