@@ -8,6 +8,7 @@ import {
 import * as btc from "@scure/btc-signer";
 import { hex, base64 } from "@scure/base";
 import { useParams } from "react-router-dom";
+import bigInt from "big-integer";
 
 const Dashboard = () => {
 
@@ -84,11 +85,11 @@ const Dashboard = () => {
 
     // set transfer amount and calculate change
     const fee = 300n; // set the miner fee amount
-    const recipient1Amount = BigInt(Math.min(paymentOutput.value, 3000)) - fee;
-    const recipient2Amount = BigInt(Math.min(ordinalOutput.value, 3000));
+    const recipient1Amount = bigInt(Math.min(paymentOutput.value, 3000)) - fee;
+    const recipient2Amount = bigInt(Math.min(ordinalOutput.value, 3000));
     const total = recipient1Amount + recipient2Amount;
     const changeAmount =
-      BigInt(paymentOutput.value) + BigInt(ordinalOutput.value) - total - fee;
+      bigInt(paymentOutput.value) + bigInt(ordinalOutput.value) - total - fee;
 
     // payment input
     tx.addInput({
@@ -96,7 +97,7 @@ const Dashboard = () => {
       index: paymentOutput.vout,
       witnessUtxo: {
         script: p2sh.script ? p2sh.script : Buffer.alloc(0),
-        amount: BigInt(paymentOutput.value),
+        amount: bigInt(paymentOutput.value),
       },
       redeemScript: p2sh.redeemScript ? p2sh.redeemScript : Buffer.alloc(0),
       witnessScript: p2sh.witnessScript,
@@ -109,7 +110,7 @@ const Dashboard = () => {
       index: ordinalOutput.vout,
       witnessUtxo: {
         script: p2tr.script,
-        amount: BigInt(ordinalOutput.value),
+        amount: bigInt(ordinalOutput.value),
       },
       tapInternalKey: ordinalPublicKey,
       sighashType: btc.SignatureHash.SINGLE | btc.SignatureHash.ANYONECANPAY,
