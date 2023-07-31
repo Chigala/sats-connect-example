@@ -1,70 +1,78 @@
-import React from "react";
-import { getAddress, signTransaction, signMessage, sendBtcTransaction  } from "sats-connect";
-import * as btc from '@scure/btc-signer';
-import { hex, base64 } from '@scure/base'
+import React, { useState, useEffect } from "react";
+import {
+  getAddress,
+  signTransaction,
+  signMessage,
+  sendBtcTransaction,
+} from "sats-connect";
+import * as btc from "@scure/btc-signer";
+import { hex, base64 } from "@scure/base";
+import { useParams } from "react-router-dom";
 
-class Dashboard extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      paymentAddress: "",
-      paymentPublicKey: "",
-      ordinalsAddress: "",
-      ordinalsPublicKey: "",
-    };
-  }
+const Dashboard = () => {
 
-  onConnectClick = async () => {
-    console.log("onConnectClick")
+      const { value, address   } = useParams();
+      console.log("this is the value:  ", value)
+      console.log("this is the address:  ", address)
+  const [paymentAddress, setPaymentAddress] = useState("");
+  const [paymentPublicKey, setPaymentPublicKey] = useState("");
+  const [ordinalsAddress, setOrdinalsAddress] = useState("");
+  const [ordinalsPublicKey, setOrdinalsPublicKey] = useState("");
+
+
+  useEffect(() => {
+    // ComponentDidMount equivalent
+    // Add any initial logic here if needed
+  }, []);
+
+  const onConnectClick = async () => {
     const getAddressOptions = {
       payload: {
         purposes: ["ordinals", "payment"],
         message: "Address for receiving Ordinals",
         network: {
-          type: "Testnet",
+          type: "Mainnet",
         },
       },
       onFinish: (response) => {
-        this.setState({
-          ordinalsAddress: response.addresses[0].address,
-          paymentAddress: response.addresses[1].address,
-          ordinalsPublicKey: response.addresses[0].publicKey,
-          paymentPublicKey: response.addresses[1].publicKey,
-        });
+        setOrdinalsAddress(response.addresses[0].address);
+        setPaymentAddress(response.addresses[1].address);
+        setOrdinalsPublicKey(response.addresses[0].publicKey);
+        setPaymentPublicKey(response.addresses[1].publicKey);
       },
       onCancel: () => alert("Request canceled"),
     };
     await getAddress(getAddressOptions);
   };
 
-  getUnspent = async (address) => {
-    const url = `https://mempool.space/testnet/api/address/${address}/utxo`
-    const response = await fetch(url)
-    return response.json()
-  }
+  const getUnspent = async (address) => {
+    const url = `http://localhost:3002/api/address/${address}/`; // Replace with your proxy server URL
+    const response = await fetch(url);
+    return response.json();
+  };
 
-  createPsbt = async (
+  const createPsbt = async (
     paymentPublicKeyString,
-    ordinalsPublicKeyString, 
-    paymentUnspentOutputs, 
+    ordinalsPublicKeyString,
+    paymentUnspentOutputs,
     ordinalsUnspentOutputs,
     recipient1,
-    recipient2,
+    recipient2
   ) => {
     const bitcoinTestnet = {
-      bech32: 'tb',
+      bech32: "tb",
       pubKeyHash: 0x6f,
       scriptHash: 0xc4,
       wif: 0xef,
-    }
+    };
 
     // choose first unspent output
-    const paymentOutput = paymentUnspentOutputs[0]
-    const ordinalOutput = ordinalsUnspentOutputs[0]
+    const paymentOutput = paymentUnspentOutputs[0];
+    const ordinalOutput = ordinalsUnspentOutputs[0];
 
-    const paymentPublicKey = hex.decode(paymentPublicKeyString)
-    const ordinalPublicKey = hex.decode(ordinalsPublicKeyString)
-    
+    const paymentPublicKey = hex.decode(paymentPublicKeyString);
+    const ordinalPublicKey = hex.decode(ordinalsPublicKeyString);
+
     const tx = new btc.Transaction();
 
     // create segwit spend
@@ -75,11 +83,12 @@ class Dashboard extends React.Component {
     const p2tr = btc.p2tr(ordinalPublicKey, undefined, bitcoinTestnet);
 
     // set transfer amount and calculate change
-    const fee = 300n // set the miner fee amount
-    const recipient1Amount = BigInt(Math.min(paymentOutput.value, 3000)) - fee
-    const recipient2Amount = BigInt(Math.min(ordinalOutput.value, 3000))
-    const total = recipient1Amount + recipient2Amount
-    const changeAmount = BigInt(paymentOutput.value) + BigInt(ordinalOutput.value) - total - fee
+    const fee = 300n; // set the miner fee amount
+    const recipient1Amount = BigInt(Math.min(paymentOutput.value, 3000)) - fee;
+    const recipient2Amount = BigInt(Math.min(ordinalOutput.value, 3000));
+    const total = recipient1Amount + recipient2Amount;
+    const changeAmount =
+      BigInt(paymentOutput.value) + BigInt(ordinalOutput.value) - total - fee;
 
     // payment input
     tx.addInput({
@@ -91,8 +100,8 @@ class Dashboard extends React.Component {
       },
       redeemScript: p2sh.redeemScript ? p2sh.redeemScript : Buffer.alloc(0),
       witnessScript: p2sh.witnessScript,
-      sighashType: btc.SignatureHash.SINGLE|btc.SignatureHash.ANYONECANPAY
-    })
+      sighashType: btc.SignatureHash.SINGLE | btc.SignatureHash.ANYONECANPAY,
+    });
 
     // ordinals input
     tx.addInput({
@@ -103,62 +112,63 @@ class Dashboard extends React.Component {
         amount: BigInt(ordinalOutput.value),
       },
       tapInternalKey: ordinalPublicKey,
-      sighashType: btc.SignatureHash.SINGLE|btc.SignatureHash.ANYONECANPAY
-    })
+      sighashType: btc.SignatureHash.SINGLE | btc.SignatureHash.ANYONECANPAY,
+    });
 
-    tx.addOutputAddress(recipient1, recipient1Amount, bitcoinTestnet)
-    tx.addOutputAddress(recipient2, recipient2Amount, bitcoinTestnet)
-    tx.addOutputAddress(recipient2, changeAmount, bitcoinTestnet)
+    tx.addOutputAddress(recipient1, recipient1Amount, bitcoinTestnet);
+    tx.addOutputAddress(recipient2, recipient2Amount, bitcoinTestnet);
+    tx.addOutputAddress(recipient2, changeAmount, bitcoinTestnet);
 
-    const psbt = tx.toPSBT(0)
-    const psbtB64 = base64.encode(psbt)
-    return psbtB64
-  }
+    const psbt = tx.toPSBT(0);
+    const psbtB64 = base64.encode(psbt);
+    return psbtB64;
+  };
 
-  onSignTransactionClick = async () => {
-    const paymentUnspentOutputs = await this.getUnspent(this.state.paymentAddress);
-    const ordinalsUnspentOutputs = await this.getUnspent(this.state.ordinalsAddress);
+  const onSignTransactionClick = async () => {
+    const paymentUnspentOutputs = await getUnspent(paymentAddress);
+    console.log("this is the unspent outputs", paymentUnspentOutputs);
+    const ordinalsUnspentOutputs = await getUnspent(ordinalsAddress);
 
     if (paymentUnspentOutputs.length < 1) {
-      alert('No unspent outputs found for payment address')
+      alert("No unspent outputs found for payment address");
     }
-    
+
     if (ordinalsUnspentOutputs.length < 1) {
-      alert('No unspent outputs found for ordinals address')
+      alert("No unspent outputs found for ordinals address");
     }
 
     // create psbt sending from payment address to ordinals address
-    const outputRecipient1 = this.state.ordinalsAddress;
-    const outputRecipient2 = this.state.paymentAddress;
+    const outputRecipient1 = ordinalsAddress;
+    const outputRecipient2 = paymentAddress;
 
-    const psbtBase64 = await this.createPsbt(
-      this.state.paymentPublicKey, 
-      this.state.ordinalsPublicKey,
-      paymentUnspentOutputs, 
+    const psbtBase64 = await createPsbt(
+      paymentPublicKey,
+      ordinalsPublicKey,
+      paymentUnspentOutputs,
       ordinalsUnspentOutputs,
       outputRecipient1,
       outputRecipient2
-    )
+    );
 
     const signPsbtOptions = {
       payload: {
         network: {
-          type: "Testnet",
+          type: "Mainnet",
         },
         message: "Sign Transaction",
         psbtBase64: psbtBase64,
         broadcast: false,
         inputsToSign: [
           {
-            address: this.state.paymentAddress,
+            address: paymentAddress,
             signingIndexes: [0],
-            sigHash: btc.SignatureHash.SINGLE|btc.SignatureHash.ANYONECANPAY,
+            sigHash: btc.SignatureHash.SINGLE | btc.SignatureHash.ANYONECANPAY,
           },
           {
-            address: this.state.ordinalsAddress,
+            address: ordinalsAddress,
             signingIndexes: [1],
-            sigHash: btc.SignatureHash.SINGLE|btc.SignatureHash.ANYONECANPAY,
-          }
+            sigHash: btc.SignatureHash.SINGLE | btc.SignatureHash.ANYONECANPAY,
+          },
         ],
       },
       onFinish: (response) => {
@@ -169,13 +179,13 @@ class Dashboard extends React.Component {
     await signTransaction(signPsbtOptions);
   };
 
-  onSignMessageClick = async () => {
+  const onSignMessageClick = async () => {
     const signMessageOptions = {
       payload: {
         network: {
-          type: "Testnet",
+          type: "Mainnet",
         },
-        address: this.state.ordinalsAddress,
+        address: ordinalsAddress,
         message: "Sign Transaction",
       },
       onFinish: (response) => {
@@ -184,25 +194,21 @@ class Dashboard extends React.Component {
       onCancel: () => alert("Canceled"),
     };
     await signMessage(signMessageOptions);
-  }
+  };
 
-  onSendBtcClick = async () => {
+  const onSendBtcClick = async () => {
     const sendBtcOptions = {
       payload: {
         network: {
-          type: "Testnet",
+          type: "Mainnet",
         },
         recipients: [
           {
-            address: '2NBC9AJ9ttmn1anzL2HvvVML8NWzCfeXFq4',
-            amountSats: 1500,
-          },
-          {
-            address: '2NFhRJfbBW8dhswyupAJWSehMz6hN5LjHzR',
-            amountSats: 1500,
+            address: address,
+            amountSats: value,
           },
         ],
-        senderAddress: this.state.paymentAddress,
+        senderAddress: paymentAddress,
       },
       onFinish: (response) => {
         alert(response);
@@ -210,61 +216,56 @@ class Dashboard extends React.Component {
       onCancel: () => alert("Canceled"),
     };
     await sendBtcTransaction(sendBtcOptions);
-  }
+  };
 
-  render() {
-    return (
-      <div style={{ padding: 30 }}>
-        Sats Connect Test App
-        <div>
-          <br />
-          {this.state.paymentAddress && (
-            <div>Payment Address: {this.state.paymentAddress}</div>
-          )}
-          {this.state.ordinalsAddress && (
-            <div>Ordinals Address: {this.state.ordinalsAddress}</div>
-          )}
+  return (
+    <div style={{ padding: 30 }}>
+       Test App
+      <div>
+        <br />
+        {paymentAddress && <div>Payment Address: {paymentAddress}</div>}
+        {ordinalsAddress && <div>Ordinals Address: {ordinalsAddress}</div>}
 
-          <div style={{ background: "lightgray", padding: 30, margin: 10 }}>
-            <button
-              style={{ height: 30, width: 180 }}
-              onClick={this.onConnectClick}
-            >
-              Connect
-            </button>
-          </div>
-
-          <div style={{ background: "lightgray", padding: 30, margin: 10 }}>
-            <button
-              style={{ height: 30, width: 180 }}
-              onClick={this.onSignTransactionClick}
-            >
-              Sign Transaction
-            </button>
-          </div>
-
-          <div style={{ background: "lightgray", padding: 30, margin: 10 }}>
-            <button
-              style={{ height: 30, width: 180 }}
-              onClick={this.onSignMessageClick}
-            >
-              Sign message
-            </button>
-          </div>
-
-          <div style={{ background: "lightgray", padding: 30, margin: 10 }}>
-            <button
-              style={{ height: 30, width: 180 }}
-              onClick={this.onSendBtcClick}
-            >
-              Send BTC Transaction
-            </button>
-          </div>
-          <br />
+        <div style={{ background: "lightgray", padding: 30, margin: 10 }}>
+          <button style={{ height: 30, width: 180 }} onClick={onConnectClick}>
+            Connect
+          </button>
         </div>
+
+        {/* <div style={{ background: "lightgray", padding: 30, margin: 10 }}>
+          <button
+            style={{ height: 30, width: 180 }}
+            onClick={onSignTransactionClick}
+          >
+            Sign Transaction
+          </button>
+        </div>
+
+        <div style={{ background: "lightgray", padding: 30, margin: 10 }}>
+          <button
+            style={{ height: 30, width: 180 }}
+            onClick={onSignMessageClick}
+          >
+            Sign message
+          </button>
+        </div> */}
+
+        <div
+          style={{
+            background: "lightgray",
+            padding: 30,
+            margin: 10,
+            display: "flex",
+          }}
+        >
+          <button style={{ height: 30, width: 180 }} onClick={onSendBtcClick}>
+            Send BTC Transaction
+          </button>
+        </div>
+        <br />
       </div>
-    );
-  }
-}
+    </div>
+  );
+};
 
 export default Dashboard;
